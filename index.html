@@ -70,12 +70,17 @@
     .cat-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
     .cat-chip{font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;background:var(--cat-bg);color:var(--cat-tx);border:1px solid var(--cat);cursor:pointer;transition:opacity .15s;user-select:none}
     .cat-chip.off{opacity:.3}
+    /* 캘린더 좌우 분할 레이아웃 (목록 1 : 캘린더 3) */
+    .cal-layout{display:grid;grid-template-columns:3fr 1fr;gap:20px;align-items:start}
+    .cal-list-col{min-width:0}
+    .cal-grid-col{min-width:0}
+
     .cal-wrap{background:#fff;border-radius:14px;border:1.5px solid #eee;overflow:hidden;margin-bottom:24px}
     .cal-wdays{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1.5px solid #eee}
     .cal-wday{text-align:center;padding:10px 4px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px}
     .cal-wday.sun{color:#e53935}.cal-wday.sat{color:#1e88e5}
     .cal-days{display:grid;grid-template-columns:repeat(7,1fr)}
-    .cal-day{height:130px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;padding:8px 7px 6px;cursor:pointer;transition:background .12s;overflow:visible;display:flex;flex-direction:column;position:relative;z-index:0}
+    .cal-day{height:150px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;padding:8px 7px 6px;cursor:pointer;transition:background .12s;overflow:visible;display:flex;flex-direction:column;position:relative;z-index:0}
     .cal-day:nth-child(7n){border-right:none}
     .cal-day:hover{background:#fafafa;z-index:1}
     .cal-day.other .dnum{color:#ccc}
@@ -157,6 +162,9 @@
       /* 본문 */
       .main{padding:16px 10px 60px}
       .sec-title{font-size:11px;margin-bottom:10px}
+
+      /* 캘린더 레이아웃 - 모바일은 세로로 쌓기 (캘린더 위, 목록 아래) */
+      .cal-layout{display:flex;flex-direction:column;gap:16px}
 
       /* 통계 */
       .stats-row{gap:6px;margin-bottom:14px}
@@ -266,16 +274,22 @@
       <button class="add-btn" id="btn-add-event">＋ 일정 추가</button>
     </div>
     <div class="cat-legend" id="cat-legend"></div>
-    <div class="cal-wrap">
-      <div class="cal-wdays">
-        <div class="cal-wday sun">일</div><div class="cal-wday">월</div><div class="cal-wday">화</div>
-        <div class="cal-wday">수</div><div class="cal-wday">목</div><div class="cal-wday">금</div>
-        <div class="cal-wday sat">토</div>
+    <div class="cal-layout">
+      <div class="cal-grid-col">
+        <div class="cal-wrap">
+          <div class="cal-wdays">
+            <div class="cal-wday sun">일</div><div class="cal-wday">월</div><div class="cal-wday">화</div>
+            <div class="cal-wday">수</div><div class="cal-wday">목</div><div class="cal-wday">금</div>
+            <div class="cal-wday sat">토</div>
+          </div>
+          <div class="cal-days" id="cal-days"></div>
+        </div>
       </div>
-      <div class="cal-days" id="cal-days"></div>
+      <div class="cal-list-col">
+        <div class="sec-title">이달의 일정 목록</div>
+        <div id="cal-list"></div>
+      </div>
     </div>
-    <div class="sec-title">이달의 일정 목록</div>
-    <div id="cal-list"></div>
   </div>
 
   <!-- 비스테이지: 외부 링크 탭 (탭 패널 없음) -->
