@@ -75,20 +75,20 @@
     .cal-wday{text-align:center;padding:10px 4px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px}
     .cal-wday.sun{color:#e53935}.cal-wday.sat{color:#1e88e5}
     .cal-days{display:grid;grid-template-columns:repeat(7,1fr)}
-    .cal-day{height:130px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;padding:8px 7px 6px;cursor:pointer;transition:background .12s;overflow:hidden;display:flex;flex-direction:column}
+    .cal-day{height:130px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;padding:8px 7px 6px;cursor:pointer;transition:background .12s;overflow:visible;display:flex;flex-direction:column;position:relative;z-index:0}
     .cal-day:nth-child(7n){border-right:none}
-    .cal-day:hover{background:#fafafa}
+    .cal-day:hover{background:#fafafa;z-index:1}
     .cal-day.other .dnum{color:#ccc}
     .cal-day.today .dnum{background:var(--pink);color:#fff !important;border-radius:50%}
     .dnum{font-size:13px;font-weight:500;color:#444;width:26px;height:26px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;flex-shrink:0}
     .cal-day.sun-c .dnum{color:#e53935}.cal-day.sat-c .dnum{color:#1e88e5}
-    .devts{display:flex;flex-direction:column;gap:2px;overflow:hidden;flex:1}
-    .devt{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--cat-bg);color:var(--cat-tx);border-left:2.5px solid var(--cat);line-height:1.6;cursor:pointer;flex-shrink:0}
-    .devt.range{border-left:none !important;border-radius:0;margin:0 -1px;padding:2px 4px}
-    .devt.range.rs{border-radius:4px 0 0 4px;margin-left:0}
-    .devt.range.re{border-radius:0 4px 4px 0;margin-right:0}
+    .devts{display:flex;flex-direction:column;gap:2px;overflow:visible;flex:1}
+    .devt{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--cat-bg);color:var(--cat-tx);border-left:2.5px solid var(--cat);line-height:1.6;cursor:pointer;flex-shrink:0;position:relative}
+    .devt.range{border-left:none !important;border-radius:0;margin:0 -8px;padding:2px 6px;z-index:1}
+    .devt.range.rs{border-radius:4px 0 0 4px;margin-left:0;padding-left:6px;border-left:2.5px solid var(--cat) !important}
+    .devt.range.re{border-radius:0 4px 4px 0;margin-right:0;padding-right:6px}
     .devt.solo{border-radius:4px;border-left:2.5px solid var(--cat) !important}
-    .dmore{font-size:9px;color:var(--muted);padding-left:3px;flex-shrink:0;line-height:1.6}
+    .dmore{font-size:9px;color:var(--muted);padding-left:3px;flex-shrink:0;line-height:1.6;cursor:pointer}
     .list-items{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
     .litem{background:#fff;border-radius:10px;border:1.5px solid #eee;padding:12px 16px;display:flex;align-items:flex-start;gap:14px;transition:box-shadow .12s}
     .litem:hover{box-shadow:0 3px 12px rgba(0,0,0,.07)}
@@ -197,6 +197,7 @@
       .cal-day{height:72px;padding:4px 3px 3px}
       .dnum{font-size:11px;width:20px;height:20px}
       .devt{font-size:9px;padding:1px 3px}
+      .dmore{font-size:8px}
       .dmore{font-size:9px}
 
       /* 목록 */
@@ -644,12 +645,12 @@
         } else {
           rc = ' solo';
         }
-        // 중간 날은 아이콘만, 시작/단일 날은 아이콘+제목 (최대 10자)
-        var shortTitle = e.title.length > 10 ? e.title.slice(0, 10) + '…' : e.title;
-        var lbl = (isRange && ds !== e.date) ? CATS[e.cat].icon : CATS[e.cat].icon + ' ' + shortTitle;
+        // 중간 날은 아이콘만, 시작/단일 날은 아이콘+제목 (최대 9자)
+        var shortTitle = e.title.length > 9 ? e.title.slice(0, 9) + '…' : e.title;
+        var lbl = (isRange && ds !== e.date) ? '&nbsp;' : CATS[e.cat].icon + ' ' + shortTitle;
         return '<div class="devt cat-' + e.cat + rc + '" data-id="' + e.id + '" title="' + e.title + '">' + lbl + '</div>';
       }).join('');
-      var more = evts.length > 2 ? '<div class="dmore">+' + (evts.length - 2) + '개 더</div>' : '';
+      var more = evts.length > 2 ? '<div class="dmore" data-date="' + ds + '">+' + (evts.length - 2) + '개 더</div>' : '';
       html += '<div class="cal-day' + cls + '" data-date="' + ds + '"><div class="dnum">' + d + '</div><div class="devts">' + dots + more + '</div></div>';
     }
 
@@ -658,7 +659,7 @@
 
     container.querySelectorAll('.cal-day').forEach(function(el) {
       el.addEventListener('click', function(e) {
-        if (e.target.classList.contains('devt')) return;
+        if (e.target.classList.contains('devt') || e.target.classList.contains('dmore')) return;
         var ds = this.getAttribute('data-date');
         var dayEvts = evtsForDate(ds);
         if (dayEvts.length >= 3) {
@@ -668,12 +669,10 @@
         }
       });
     });
-    // +N개 더 클릭 → 날짜 모달
     container.querySelectorAll('.dmore').forEach(function(el) {
       el.addEventListener('click', function(e) {
         e.stopPropagation();
-        var ds = this.closest('.cal-day').getAttribute('data-date');
-        openDayModal(ds);
+        openDayModal(this.getAttribute('data-date'));
       });
     });
     container.querySelectorAll('.devt').forEach(function(el) {
@@ -737,6 +736,7 @@
   function renderList() {
     var mStart = calYear + '-' + String(calMonth + 1).padStart(2,'0') + '-01';
     var mEnd   = calYear + '-' + String(calMonth + 1).padStart(2,'0') + '-' + String(new Date(calYear, calMonth + 1, 0).getDate()).padStart(2,'0');
+    var todayStr = toDateStr(today);
     var seen   = {};
     var evts   = allEvents()
       .filter(function(e) {
@@ -745,11 +745,18 @@
         var en = e.dateEnd || e.date;
         return s <= mEnd && en >= mStart;
       })
-      .sort(function(a,b) { return a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''); })
       .filter(function(e) {
         if (seen[e.id]) return false;
         seen[e.id] = true;
         return true;
+      })
+      .sort(function(a,b) {
+        // 오늘 이후(또는 오늘 포함) 일정 그룹을 먼저, 지난 일정 그룹을 나중에
+        var aFuture = (a.dateEnd || a.date) >= todayStr;
+        var bFuture = (b.dateEnd || b.date) >= todayStr;
+        if (aFuture !== bFuture) return aFuture ? -1 : 1;
+        // 같은 그룹 내에서는 날짜/시간 오름차순
+        return a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '');
       });
 
     if (!evts.length) {
