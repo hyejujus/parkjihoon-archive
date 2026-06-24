@@ -658,8 +658,8 @@
       var col = i % 7;
       var cls = (other ? ' other' : '') + (ds === tdStr ? ' today' : '') + (col === 0 ? ' sun-c' : col === 6 ? ' sat-c' : '');
       var evts = evtsForDate(ds).sort(function(a, b) {
-        var aRange = a.dateEnd && a.dateEnd !== a.date ? 0 : 1;
-        var bRange = b.dateEnd && b.dateEnd !== b.date ? 0 : 1;
+        var aRange = a.dateEnd && a.dateEnd !== a.date ? 1 : 0;
+        var bRange = b.dateEnd && b.dateEnd !== b.date ? 1 : 0;
         if (aRange !== bRange) return aRange - bRange;
         // 같은 그룹 내에서는 시작일+id로 고정 정렬해서 모든 날짜에서 동일한 순서 유지
         var aKey = a.date + a.id;
