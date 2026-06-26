@@ -501,6 +501,7 @@
   var calMonth   = today.getMonth();
   var activeCats = new Set(Object.keys(CATS));
   var editingId  = null;
+  var isEditingFixed = false;
   var detailId   = null;
   var pendingImages = [];
 
@@ -861,12 +862,7 @@
         var id = this.getAttribute('data-id');
         var ev = allEvents().find(function(e) { return e.id === id; });
         if (!ev) return;
-        if (ev.fixed) {
-          var copy = Object.assign({}, ev, { id: String(Date.now()), fixed: false });
-          fillEditModal(copy, true);
-        } else {
-          fillEditModal(ev, false);
-        }
+        fillEditModal(ev);
       });
     });
     ge('cal-list').querySelectorAll('.ldel-btn').forEach(function(btn) {
@@ -980,6 +976,7 @@
   function openAddModal(dateStr) {
     reqPw(function() {
       editingId = null;
+      isEditingFixed = false;
       ge('ev-modal-title').textContent = '일정 추가';
       fillEventForm(null);
       if (dateStr) ge('ev-date').value = dateStr;
@@ -988,12 +985,12 @@
     });
   }
 
-  function fillEditModal(ev, isNewFromFixed) {
+  function fillEditModal(ev) {
     reqPw(function() {
-      editingId = isNewFromFixed ? null : ev.id;
+      editingId = ev.id;
+      isEditingFixed = !!ev.fixed;
       ge('ev-modal-title').textContent = '일정 수정';
       fillEventForm(ev);
-      ge('ev-save-btn').setAttribute('data-fixed-origin', isNewFromFixed ? detailId : '');
       ge('mo-detail').classList.remove('open'); // 상세 모달 닫기
       ge('mo-event').classList.add('open');
       setTimeout(function() { ge('ev-title').focus(); }, 80);
@@ -1003,8 +1000,8 @@
   ge('btn-add-event').addEventListener('click', function() { openAddModal(null); });
   ge('ev-cancel-btn').addEventListener('click', function() {
     ge('mo-event').classList.remove('open');
-    ge('ev-save-btn').setAttribute('data-fixed-origin', '');
     editingId = null;
+    isEditingFixed = false;
   });
   ge('ev-save-btn').addEventListener('click', function() {
     var title   = ge('ev-title').value.trim();
@@ -1015,32 +1012,33 @@
     if (dateEnd && dateEnd < date) { alert('종료일은 시작일 이후여야 해요!'); return; }
     var ev = {
       id:       editingId || String(Date.now()),
-      title:    title,
+      fixed:    isEditingFixed || false,
       cat:      ge('ev-cat').value,
       date:     date,
       dateEnd:  dateEnd || '',
       time:     ge('ev-time').value,
       timeEnd:  ge('ev-time-end').value,
+      title:    title,
       location: ge('ev-location').value.trim(),
       note:     ge('ev-note').value.trim(),
       link:     ge('ev-link').value.trim(),
       images:   pendingImages.slice()
     };
-    if (editingId) {
+    if (editingId && isEditingFixed) {
+      // 고정 일정은 FIXED 배열 내에서 직접 수정
+      var fIdx = FIXED.findIndex(function(e) { return e.id === editingId; });
+      if (fIdx !== -1) FIXED[fIdx] = ev;
+    } else if (editingId) {
+      // 사용자 일정 수정
       evStore = evStore.map(function(e) { return e.id === editingId ? ev : e; });
     } else {
-      // 고정 일정 수정인 경우 FIXED에서 원본 제거 후 evStore에 추가
-      var fixedOriginId = ge('ev-save-btn').getAttribute('data-fixed-origin');
-      if (fixedOriginId) {
-        var origIdx = FIXED.findIndex(function(e) { return e.id === fixedOriginId; });
-        if (origIdx !== -1) FIXED.splice(origIdx, 1);
-        ge('ev-save-btn').setAttribute('data-fixed-origin', '');
-      }
+      // 신규 일정 추가
       evStore.push(ev);
     }
     persist();
     ge('mo-event').classList.remove('open');
     editingId = null;
+    isEditingFixed = false;
     var p = date.split('-');
     calYear = parseInt(p[0]); calMonth = parseInt(p[1]) - 1;
     renderGrid(); renderList();
@@ -1086,13 +1084,7 @@
   ge('det-edit-btn').addEventListener('click', function() {
     var ev = allEvents().find(function(e) { return e.id === detailId; });
     if (!ev) return;
-    // 고정 일정은 복사본을 evStore에 넣어 수정
-    if (ev.fixed) {
-      var copy = Object.assign({}, ev, { id: String(Date.now()), fixed: false });
-      fillEditModal(copy, true); // true = isNewFromFixed
-    } else {
-      fillEditModal(ev, false);
-    }
+    fillEditModal(ev);
   });
 
   ge('det-del-btn').addEventListener('click', function() {
