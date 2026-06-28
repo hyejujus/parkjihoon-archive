@@ -493,14 +493,19 @@
       });
   }
 
-  /* Firebase에 저장 */
+  /* Firebase에 저장 (Promise 반환 - 저장 완료를 기다릴 수 있음) */
   function persist() {
     var payload = { events: evStore, fixedOverrides: fixedOverrides, fixedDeleted: fixedDeleted };
     try { localStorage.setItem('pjh_cal_full', JSON.stringify(payload)); } catch(e) {}
-    if (isSyncing) return;
+    if (isSyncing) {
+      // 이미 저장 중이면 잠시 대기 후 재시도
+      return new Promise(function(resolve) {
+        setTimeout(function() { persist().then(resolve); }, 300);
+      });
+    }
     isSyncing = true;
     showSyncStatus('저장 중…', '#888');
-    fetch(FIREBASE_URL, {
+    return fetch(FIREBASE_URL, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1062,13 +1067,22 @@
       // 신규 일정 추가
       evStore.push(ev);
     }
-    persist();
-    ge('mo-event').classList.remove('open');
-    editingId = null;
-    isEditingFixed = false;
-    var p = date.split('-');
-    calYear = parseInt(p[0]); calMonth = parseInt(p[1]) - 1;
-    renderGrid(); renderList();
+
+    var saveBtn = ge('ev-save-btn');
+    var origText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '저장 중...';
+
+    persist().then(function() {
+      saveBtn.disabled = false;
+      saveBtn.textContent = origText;
+      ge('mo-event').classList.remove('open');
+      editingId = null;
+      isEditingFixed = false;
+      var p = date.split('-');
+      calYear = parseInt(p[0]); calMonth = parseInt(p[1]) - 1;
+      renderGrid(); renderList();
+    });
   });
 
   /* ════════════════════════════
