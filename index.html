@@ -441,6 +441,8 @@
   var FIREBASE_URL = 'https://jihoon-f54fc-default-rtdb.firebaseio.com/events.json';
 
   var evStore = [];
+  var fixedOverrides = {};   // { id: 수정된 이벤트 객체 } - 고정 일정 수정사항 저장
+  var fixedDeleted = [];     // 삭제된 고정 일정 id 목록
   var isSyncing = false;
 
   function showSyncStatus(msg, color) {
@@ -460,12 +462,32 @@
     fetch(FIREBASE_URL)
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        evStore = Array.isArray(data) ? data : [];
+        if (Array.isArray(data)) {
+          // 구버전 데이터 호환 (events 배열만 있던 경우)
+          evStore = data;
+          fixedOverrides = {};
+          fixedDeleted = [];
+        } else if (data && typeof data === 'object') {
+          evStore = Array.isArray(data.events) ? data.events : [];
+          fixedOverrides = data.fixedOverrides || {};
+          fixedDeleted = Array.isArray(data.fixedDeleted) ? data.fixedDeleted : [];
+        } else {
+          evStore = []; fixedOverrides = {}; fixedDeleted = [];
+        }
         showSyncStatus('✓ 동기화 완료', '#4CAF50');
         if (cb) cb();
       })
       .catch(function() {
-        try { evStore = JSON.parse(localStorage.getItem('pjh_cal') || '[]'); } catch(e) { evStore = []; }
+        try {
+          var local = JSON.parse(localStorage.getItem('pjh_cal_full') || 'null');
+          if (local) {
+            evStore = local.events || [];
+            fixedOverrides = local.fixedOverrides || {};
+            fixedDeleted = local.fixedDeleted || [];
+          } else {
+            evStore = JSON.parse(localStorage.getItem('pjh_cal') || '[]');
+          }
+        } catch(e) { evStore = []; }
         showSyncStatus('⚠ 오프라인 모드', '#FFB300');
         if (cb) cb();
       });
@@ -473,14 +495,15 @@
 
   /* Firebase에 저장 */
   function persist() {
-    try { localStorage.setItem('pjh_cal', JSON.stringify(evStore)); } catch(e) {}
+    var payload = { events: evStore, fixedOverrides: fixedOverrides, fixedDeleted: fixedDeleted };
+    try { localStorage.setItem('pjh_cal_full', JSON.stringify(payload)); } catch(e) {}
     if (isSyncing) return;
     isSyncing = true;
     showSyncStatus('저장 중…', '#888');
     fetch(FIREBASE_URL, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(evStore)
+      body: JSON.stringify(payload)
     })
       .then(function(r) { return r.json(); })
       .then(function() {
@@ -493,7 +516,12 @@
       });
   }
 
-  function allEvents() { return FIXED.concat(evStore); }
+  function allEvents() {
+    var fixedResolved = FIXED
+      .filter(function(e) { return fixedDeleted.indexOf(e.id) === -1; })
+      .map(function(e) { return fixedOverrides[e.id] ? fixedOverrides[e.id] : e; });
+    return fixedResolved.concat(evStore);
+  }
 
   /* ── 상태 ── */
   var today      = new Date();
@@ -873,12 +901,12 @@
         reqPw(function() {
           if (!confirm('"' + ev.title + '" 일정을 삭제할까요?')) return;
           if (ev.fixed) {
-            var idx = FIXED.findIndex(function(e) { return e.id === id; });
-            if (idx !== -1) FIXED.splice(idx, 1);
+            if (fixedDeleted.indexOf(id) === -1) fixedDeleted.push(id);
+            delete fixedOverrides[id];
           } else {
             evStore = evStore.filter(function(e) { return e.id !== id; });
-            persist();
           }
+          persist();
           renderGrid(); renderList();
         });
       });
@@ -1025,9 +1053,8 @@
       images:   pendingImages.slice()
     };
     if (editingId && isEditingFixed) {
-      // 고정 일정은 FIXED 배열 내에서 직접 수정
-      var fIdx = FIXED.findIndex(function(e) { return e.id === editingId; });
-      if (fIdx !== -1) FIXED[fIdx] = ev;
+      // 고정 일정 수정사항은 fixedOverrides에 저장 (Firebase로 동기화됨)
+      fixedOverrides[editingId] = ev;
     } else if (editingId) {
       // 사용자 일정 수정
       evStore = evStore.map(function(e) { return e.id === editingId ? ev : e; });
@@ -1093,13 +1120,12 @@
     reqPw(function() {
       if (!confirm('"' + ev.title + '" 일정을 삭제할까요?')) return;
       if (ev.fixed) {
-        // FIXED 배열에서 제거
-        var idx = FIXED.findIndex(function(e) { return e.id === detailId; });
-        if (idx !== -1) FIXED.splice(idx, 1);
+        if (fixedDeleted.indexOf(detailId) === -1) fixedDeleted.push(detailId);
+        delete fixedOverrides[detailId];
       } else {
         evStore = evStore.filter(function(e) { return e.id !== detailId; });
-        persist();
       }
+      persist();
       ge('mo-detail').classList.remove('open');
       renderGrid(); renderList();
     });
